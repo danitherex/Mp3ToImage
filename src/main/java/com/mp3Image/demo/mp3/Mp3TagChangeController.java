@@ -5,6 +5,7 @@ import org.jaudiotagger.tag.images.Artwork;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
@@ -14,9 +15,11 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import java.io.File;
 import java.io.IOException;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 
 @RestController
+@CrossOrigin(origins = "http://localhost:3000")
 public class Mp3TagChangeController {
 
 
@@ -35,40 +38,49 @@ public class Mp3TagChangeController {
                                                HttpServletRequest request) {
         String fileName = fileStorageService.storeFile(file);
         String artworkName = fileStorageService.storeFile(artwork);
-
-        String fileDownloadUri = ServletUriComponentsBuilder.fromCurrentContextPath()
-                .path("/downloadFile/")
-                .path(fileName)
-                .toUriString();
+        String artist_name=null;
+        if(artist.isPresent()){
+            artist_name=artist.get();
+        }
+        String title_name=null;
+        if(title.isPresent()){
+            title_name=title.get();
+        }
+        String album_name=null;
+        if(album.isPresent()){
+            album_name=album.get();
+        }
         try {
             File fileasMp3 = new File(fileStorageService.loadFileAsResource(fileName).getURI());
-            this.mp3TagChangeHandler = new Mp3TagChangeHandler(fileasMp3);
-            mp3TagChangeHandler.changeMp3Data(title.get(), artist.get(), album.get());
-            File artworkFile = new File(fileStorageService.loadFileAsResource(artworkName).getURI());
-            mp3TagChangeHandler.changeMp3CoverArt(artworkFile);
-            logger.warn(this.mp3TagChangeHandler.readMp3Data());
-            Resource resource = fileStorageService.loadFileAsResource(fileName);
-            mp3TagChangeHandler.deleteMp3FileAndArtwork();
-            String contentType = null;
-            try {
-                contentType = request.getServletContext().getMimeType(resource.getFile().getAbsolutePath());
-            } catch (IOException ex) {
-                logger.info("Could not determine file type.");
-            }
-
-            // Fallback to the default content type if type could not be determined
-            if (contentType == null) {
-                contentType = "application/octet-stream";
-            }
-
-            return ResponseEntity.ok()
-                    .contentType(MediaType.parseMediaType(contentType))
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + resource.getFilename() + "\"")
-                    .body(resource);
+            return changeMp3Tag(artist_name, title_name, album_name, new File(fileStorageService.loadFileAsResource(artworkName).getURI()), fileasMp3,fileName,request);
 
         } catch (Exception e) {
-            logger.warn(e.getMessage());
-            return new ResponseEntity(null, HttpStatus.INTERNAL_SERVER_ERROR);
+            logger.warn(e.toString());
+            return new ResponseEntity("There has been a Server error", HttpStatus.INTERNAL_SERVER_ERROR);
         }
+    }
+
+    public ResponseEntity<Resource> changeMp3Tag(String artist, String title, String album, File artworkFile, File file, String fileName, HttpServletRequest request) {
+
+        String contentType = null;
+        this.mp3TagChangeHandler = new Mp3TagChangeHandler(file);
+        mp3TagChangeHandler.changeMp3Data(title, artist, album);
+        mp3TagChangeHandler.changeMp3CoverArt(artworkFile);
+        logger.warn(this.mp3TagChangeHandler.readMp3Data());
+        Resource resource = fileStorageService.loadFileAsResource(fileName);
+        try {
+            contentType = request.getServletContext().getMimeType(resource.getFile().getAbsolutePath());
+        } catch (IOException ex) {
+            logger.info("Could not determine file type.");
+        }
+
+        // Fallback to the default content type if type could not be determined
+        if (contentType == null) {
+            contentType = "application/octet-stream";
+        }
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(contentType))
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + resource.getFilename() + "\"")
+                .body(resource);
     }
 }

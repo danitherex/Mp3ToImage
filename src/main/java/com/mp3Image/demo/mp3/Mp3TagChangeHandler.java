@@ -78,11 +78,7 @@ public class Mp3TagChangeHandler {
             this.file.setTag(tagv2);
             AudioFileIO.write(this.file);
             logger.info("Artwork added to mp3 file");
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        } catch (CannotWriteException e) {
-            throw new RuntimeException(e);
-        } catch (FieldDataInvalidException e) {
+        } catch (IOException | CannotWriteException | FieldDataInvalidException e) {
             throw new RuntimeException(e);
         }
     }
@@ -91,7 +87,8 @@ public class Mp3TagChangeHandler {
             Files.delete(this.file.getFile().toPath());
             Files.delete(new File(this.ArtworkPath).toPath());
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            logger.warning("Could not delete mp3 file or artwork");
+            logger.warning(e.getMessage());
         }
     }
 }
