@@ -19,7 +19,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 
 @RestController
-@CrossOrigin(origins = "http://localhost:3000")
+@CrossOrigin(origins = "http://localhost:8080")
 public class Mp3TagChangeController {
 
 
